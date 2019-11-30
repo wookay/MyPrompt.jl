@@ -1,26 +1,39 @@
-### MyPrompt
+### MyPrompt.jl
 
-```
-$ cat .julia/config/startup.jl
-using REPL: atreplinit
-using MyPrompt: my_banner, print_banner, my_prompt
+|  **Build Status**                |
+|:---------------------------------|
+|  [![][actions-img]][actions-url] |
 
-atreplinit() do repl
-    my_banner(stdout, print_banner)
-    my_prompt(repl, "줄리아> ")
-end
-```
+### Base.banner
 
-```
-~ julia --banner=no
+```julia
+$ julia --banner=no -i -e 'using MyPrompt; Base.banner()'
                _
    _       _ _(_)_     |  A fresh approach to technical computing
   (_)     | (_) (_)    |  Documentation: https://docs.julialang.org
    _ _   _| |_  __ _   |  Type "?" for help, "]?" for Pkg help.
   | | | | | | |/ _` |  |
-  | | |_| | | | (_| |  |  Version 1.1.0-DEV.597 (2018-11-01)
- _/ |\__'_|_|_|\__'_|  |  Commit f0017a4964* (0 days old master)
-|__/                   |
+  | | |_| | | | (_| |  |  Version 1.3.0 (2019-11-26)
+ _/ |\__'_|_|_|\__'_|  |  Official https://julialang.org/ release
+|__/
 
-줄리아>
+julia> 
 ```
+
+### set_prompt
+
+```julia
+$ cat .julia/config/startup.jl
+using REPL: atreplinit
+using MyPrompt: set_prompt
+
+atreplinit() do repl
+    set_prompt(repl, "줄리아> ")
+end
+
+$ julia --banner=no
+줄리아> 
+```
+
+[actions-img]: https://github.com/wookay/MyPrompt.jl/workflows/CI/badge.svg
+[actions-url]: https://github.com/wookay/MyPrompt.jl/actions

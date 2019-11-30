@@ -5,11 +5,50 @@ using .REPL.LineEdit
 using .REPL: AnyDict, edit_insert, JL_PROMPT_PASTE, JULIA_PROMPT, raw!, disable_bracketed_paste, enable_bracketed_paste
 using Base: GIT_VERSION_INFO, TAGGED_RELEASE_BANNER
 
-function my_banner(io, block)
-    Base.JLOptions().banner == 0 && block(io)
+Base.banner(io::Base.TTY) = print_banner(io)
+
+# code from https://github.com/JuliaLang/julia/blob/master/base/version.jl#L262
+function print_banner(io)
+    if GIT_VERSION_INFO.tagged_commit
+        commit_string = TAGGED_RELEASE_BANNER
+    elseif isempty(GIT_VERSION_INFO.commit)
+        commit_string = ""
+    else
+        days = Int(floor((ccall(:jl_clock_now, Float64, ()) - GIT_VERSION_INFO.fork_master_timestamp) / (60 * 60 * 24)))
+        days = max(0, days)
+        unit = days == 1 ? "day" : "days"
+        distance = GIT_VERSION_INFO.fork_master_distance
+        commit = GIT_VERSION_INFO.commit_short
+
+        if distance == 0
+            commit_string = "Commit $(commit) ($(days) $(unit) old master)"
+        else
+            branch = GIT_VERSION_INFO.branch
+            commit_string = "$(branch)/$(commit) (fork: $(distance) commits, $(days) $(unit))"
+        end
+    end
+    commit_date = isempty(Base.GIT_VERSION_INFO.date_string) ? "" : " ($(split(Base.GIT_VERSION_INFO.date_string)[1]))"
+    c = Base.text_colors
+    tx = c[:normal] # text
+    jl = c[:normal] # julia
+    d1 = c[:bold] * c[:blue]    # first dot
+    d2 = c[:bold] * c[:red]     # second dot
+    d3 = c[:bold] * c[:green]   # third dot
+    d4 = c[:bold] * c[:magenta] # fourth dot
+    io = stdout
+    print(io,"""               $(d3)_$(tx)
+       $(d1)_$(tx)       $(jl)_$(tx) $(d2)_$(d3)(_)$(d4)_$(tx)     |  A fresh approach to technical computing
+      $(d1)(_)$(jl)     | $(d2)(_)$(tx) $(d4)(_)$(tx)    |  Documentation: https://docs.julialang.org
+       $(jl)_ _   _| |_  __ _$(tx)   |  Type \"?\" for help, \"]?\" for Pkg help.
+      $(jl)| | | | | | |/ _` |$(tx)  |
+      $(jl)| | |_| | | | (_| |$(tx)  |  Version $(VERSION)$(commit_date)
+     $(jl)_/ |\\__'_|_|_|\\__'_|$(tx)  |  $(commit_string)
+    $(jl)|__/$(tx)                   |
+
+    """)
 end
 
-function my_prompt(repl, promptstr)
+function set_prompt(repl, promptstr)
     # code from https://github.com/JuliaLang/julia/blob/master/stdlib/REPL/src/REPL.jl#L900
     extra_keymap = AnyDict(
         # Bracketed Paste Mode
@@ -106,59 +145,16 @@ function my_prompt(repl, promptstr)
         end,
     )
     repl.interface = REPL.setup_interface(repl, extra_repl_keymap=extra_keymap)
-    repl.interface.modes[1].prompt =  () -> begin
-        promptstr
-    end
-end # function my_prompt()
-
-function print_banner(io)
-    # code from https://github.com/JuliaLang/julia/blob/master/base/version.jl#L262
-    if GIT_VERSION_INFO.tagged_commit
-        commit_string = TAGGED_RELEASE_BANNER
-    elseif isempty(GIT_VERSION_INFO.commit)
-        commit_string = ""
-    else
-        days = Int(floor((ccall(:jl_clock_now, Float64, ()) - GIT_VERSION_INFO.fork_master_timestamp) / (60 * 60 * 24)))
-        days = max(0, days)
-        unit = days == 1 ? "day" : "days"
-        distance = GIT_VERSION_INFO.fork_master_distance
-        commit = GIT_VERSION_INFO.commit_short
-
-        if distance == 0
-            commit_string = "Commit $(commit) ($(days) $(unit) old master)"
-        else
-            branch = GIT_VERSION_INFO.branch
-            commit_string = "$(branch)/$(commit) (fork: $(distance) commits, $(days) $(unit))"
-        end
-    end
-    commit_date = isempty(Base.GIT_VERSION_INFO.date_string) ? "" : " ($(split(Base.GIT_VERSION_INFO.date_string)[1]))"
-    c = Base.text_colors
-    tx = c[:normal] # text
-    jl = c[:normal] # julia
-    d1 = c[:bold] * c[:blue]    # first dot
-    d2 = c[:bold] * c[:red]     # second dot
-    d3 = c[:bold] * c[:green]   # third dot
-    d4 = c[:bold] * c[:magenta] # fourth dot
-    io = stdout
-    print(io,"""               $(d3)_$(tx)
-       $(d1)_$(tx)       $(jl)_$(tx) $(d2)_$(d3)(_)$(d4)_$(tx)     |  A fresh approach to technical computing
-      $(d1)(_)$(jl)     | $(d2)(_)$(tx) $(d4)(_)$(tx)    |  Documentation: https://docs.julialang.org
-       $(jl)_ _   _| |_  __ _$(tx)   |  Type \"?\" for help, \"]?\" for Pkg help.
-      $(jl)| | | | | | |/ _` |$(tx)  |
-      $(jl)| | |_| | | | (_| |$(tx)  |  Version $(VERSION)$(commit_date)
-     $(jl)_/ |\\__'_|_|_|\\__'_|$(tx)  |  $(commit_string)
-    $(jl)|__/$(tx)                   |
-
-    """)
-end
+    repl.interface.modes[1].prompt = promptstr
+end # function prompt()
 
 
 # Julia issue #32558
 
 using .REPL.REPLCompletions: Completion, PropertyCompletion, FieldCompletion, non_identifier_chars, get_value, get_type, filtered_mod_names
 
-# REPL Symbol Completions
 # code from julia/stdlib/REPL/src/REPLCompletions.jl
+# REPL Symbol Completions
 function REPL.REPLCompletions.complete_symbol(sym::String, ffunc, context_module=Main)::Vector{Completion}
     mod = context_module
     name = sym
@@ -232,4 +228,4 @@ function REPL.REPLCompletions.complete_symbol(sym::String, ffunc, context_module
     suggestions
 end
 
-end # module
+end # module MyPrompt
