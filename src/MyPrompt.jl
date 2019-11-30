@@ -152,4 +152,84 @@ function print_banner(io)
     """)
 end
 
+
+# Julia issue #32558
+
+using .REPL.REPLCompletions: Completion, PropertyCompletion, FieldCompletion, non_identifier_chars, get_value, get_type, filtered_mod_names
+
+# REPL Symbol Completions
+# code from julia/stdlib/REPL/src/REPLCompletions.jl
+function REPL.REPLCompletions.complete_symbol(sym::String, ffunc, context_module=Main)::Vector{Completion}
+    mod = context_module
+    name = sym
+
+    lookup_module = true
+    t = Union{}
+    val = nothing
+    if something(findlast(in(non_identifier_chars), sym), 0) < something(findlast(isequal('.'), sym), 0)
+        # Find module
+        lookup_name, name = rsplit(sym, ".", limit=2)
+
+        ex = Meta.parse(lookup_name, raise=false, depwarn=false)
+
+        b, found = get_value(ex, context_module)
+        if found
+            val = b
+            if isa(b, Module)
+                mod = b
+                lookup_module = true
+            elseif Base.isstructtype(typeof(b))
+                lookup_module = false
+                t = typeof(b)
+            end
+        else # If the value is not found using get_value, the expression contain an advanced expression
+            lookup_module = false
+            t, found = get_type(ex, context_module)
+        end
+        found || return Completion[]
+        # Ensure REPLCompletion do not crash when asked to complete a tuple, #15329
+        !lookup_module && t <: Tuple && return Completion[]
+    end
+
+    suggestions = Completion[]
+    if lookup_module
+        # We will exclude the results that the user does not want, as well
+        # as excluding Main.Main.Main, etc., because that's most likely not what
+        # the user wants
+        p = s->(!Base.isdeprecated(mod, s) && s != nameof(mod) && ffunc(mod, s))
+        # Looking for a binding in a module
+        if mod == context_module
+            # Also look in modules we got through `using`
+            mods = ccall(:jl_module_usings, Any, (Any,), context_module)
+            for m in mods
+                append!(suggestions, filtered_mod_names(p, m, name))
+            end
+            append!(suggestions, filtered_mod_names(p, mod, name, true, true))
+        else
+            append!(suggestions, filtered_mod_names(p, mod, name, true, false))
+        end
+    elseif val !== nothing # looking for a property of an instance
+        for property in propertynames(val, false)
+            s = string(property)
+            if startswith(s, name)
+                push!(suggestions, PropertyCompletion(val, property))
+            end
+        end
+    else
+        # Looking for a member of a type
+        if t isa DataType && t != Any
+            local type_t(::Type{T}) where T = typeof(T)
+            local type_t(x::Any)            = x
+            t2 = type_t(t)
+            isconcretetype(t2) && for field in fieldnames(t2)
+                s = string(field)
+                if startswith(s, name)
+                    push!(suggestions, FieldCompletion(t2, field))
+                end
+            end
+        end
+    end
+    suggestions
+end
+
 end # module
