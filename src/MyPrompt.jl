@@ -7,6 +7,9 @@ using Base: GIT_VERSION_INFO, TAGGED_RELEASE_BANNER
 
 Base.banner(io::Base.TTY) = print_banner(io)
 
+banner(io::IO) = print_banner(io)
+banner()       = banner(stdout)
+
 # code from https://github.com/JuliaLang/julia/blob/master/base/version.jl#L262
 function print_banner(io)
     if GIT_VERSION_INFO.tagged_commit

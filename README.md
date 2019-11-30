@@ -4,10 +4,10 @@
 |:---------------------------------|
 |  [![][actions-img]][actions-url] |
 
-### Base.banner
+### banner
 
 ```julia
-$ julia --banner=no -i -e 'using MyPrompt; Base.banner()'
+$ julia --banner=no -i -e 'using MyPrompt; MyPrompt.banner()'
                _
    _       _ _(_)_     |  A fresh approach to technical computing
   (_)     | (_) (_)    |  Documentation: https://docs.julialang.org
