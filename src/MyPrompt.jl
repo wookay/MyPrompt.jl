@@ -152,6 +152,7 @@ function set_prompt(repl, promptstr)
 end # function prompt()
 
 
+if VERSION < v"1.5.0-DEV.130"
 # Julia issue #32558
 
 using .REPL.REPLCompletions: Completion, PropertyCompletion, FieldCompletion, non_identifier_chars, get_value, get_type, filtered_mod_names
@@ -217,18 +218,25 @@ function REPL.REPLCompletions.complete_symbol(sym::String, ffunc, context_module
     else
         # Looking for a member of a type
         if t isa DataType && t != Any
-            local type_t(::Type{T}) where T = typeof(T)
-            local type_t(x::Any)            = x
-            t2 = type_t(t)
-            isconcretetype(t2) && for field in fieldnames(t2)
-                s = string(field)
-                if startswith(s, name)
-                    push!(suggestions, FieldCompletion(t2, field))
+            # Check for cases like Type{typeof(+)}
+            if t isa DataType && t.name === Base._TYPE_NAME
+                t = typeof(t.parameters[1])
+            end
+            # Only look for fields if this is a concrete type
+            if isconcretetype(t)
+                fields = fieldnames(t)
+                for field in fields
+                    s = string(field)
+                    if startswith(s, name)
+                        push!(suggestions, FieldCompletion(t, field))
+                    end
                 end
             end
         end
     end
     suggestions
 end
+
+end # if VERSION < v"1.5.0-DEV.130"
 
 end # module MyPrompt
